@@ -1,0 +1,87 @@
+
+// Envelope is a metadata format in Datacoin blockchain
+
+message Envelope {
+  enum CompressionMethod {
+    None = 0; 
+    Bzip2 = 1;
+    Xz = 2;
+  }
+
+  enum UpdateMethod {
+    Replace = 0;
+    ApplyDiff = 1;
+  }
+
+  optional string FileName = 1;
+  optional string ContentType = 2; // will be sent to web browser as is in HTTP header
+  required CompressionMethod Compression = 3;
+
+  optional string PublicKey = 4;
+  optional string Signature = 5;
+
+  // Big files can be sent as several txes
+  optional uint32 PartNumber = 6; // starts from zero
+  optional uint32 TotalParts = 7; 
+
+  optional string PrevTxId = 8;
+
+  required bytes Data = 9;
+
+  extensions 10 to max;
+};
+
+// Overview of envelope rules
+//
+// 1. Only CompressionMethod and Data fields are required. Compression method can
+//    be set to "None" (means no compression).
+//
+// 2. ContentType will help to sort data by content (all PGP key or all FOAF files) and
+//    will be provided to web browser as is in HTTP header. ContentType is optional.
+//
+// 3. Files bigger than max tx size (> 128Kb) are to be sent in form of sequences.
+//    PartNumber, TotalParts, Signature and PrevTxId fields are to be used.
+//    Signature proves that the second part is sent by the same person.
+//
+// 4. To indicate that this file is a new version of some other file previously stored
+//    in blockchain this new file has to be signed with RSA private key corresponding
+//    to public key of the file it updates.
+//    Signature and PrevTxId fields are used to updates old data.
+//
+//    Note: Data without PublicKey can't be updated.
+
+// Big files
+//
+// Due to a tx size limitation big files are to be packed into a sequence of transactions:
+//
+// Part 0: {
+//   PublicKey = RSA pubkey
+//   PartNumber = 0
+//   TotalParts = total number of txes in sequence
+//   .. other fields
+// }
+//
+// Part 1 .. TotalParts: {
+//   PublicKey isn't defined
+//   Signature = RSA->sign(Data) with private key corresponding to PublicKey provided in Part 0
+//   PartNumber = 1 .. TotalParts
+//   PrevTxId = tx id of Part 0
+//   ... other fields
+// }
+
+// Updates
+//
+// Files are addressed by txId. File name is stored for user's convenience only. In order to update
+// already stored in blockchain file an update must be sent following way:
+//
+// {
+//   PrevTxId = id of transaction we are going to update
+//   Signature = RSA->sign(Data) with private key corresponding to PublicKey provided in PrevTxId
+//   ... other fields
+// }
+
+// Updating something with big file
+//
+// Big files are to be splitted into a sequence if txes. In this case first tx in sequence points
+// to the tx we are updating (with PrevTxId and Signature). All other txes in the sequence will
+// follow rules provided above in "Big files" section.
