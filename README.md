@@ -1,7 +1,7 @@
 datacoin-browser
 ================
 
-1. How to put file into Datacoin blockchain?
+* How to put file into Datacoin blockchain?
 
 $ perl dtc_put_file.pl file.txt
 
@@ -11,7 +11,7 @@ Use "--add_key" argument in order to add RSA public key to file. Correpspondin p
 
 Note: both scenarios aren't fully implemented now. Only small (less 128Kb) files can be easily stored now.
 
-2. How to get data from Datacoin blockchain?
+* How to get data from Datacoin blockchain?
 
 $ perl dtc_get_file.pl txid
 
