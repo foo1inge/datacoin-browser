@@ -19,7 +19,7 @@ $ perl dtc\_get\_file.pl txid
 
 Upon success scripts prints data content of corresponding transaction. In order to save data to file use "--save_to=filename" option. 
 
-** Dependencies **
+**Dependencies**
 
 Both scripts depends on following modules.
 
