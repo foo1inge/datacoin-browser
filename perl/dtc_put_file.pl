@@ -16,7 +16,6 @@ use Datacoin::Utils;
 my %harg = parse_args(\@ARGV);
 my $config_path = File::HomeDir->my_home . "/.datacoin/" unless length($harg{config_path}) > 0;
 my %conf = init_config($config_path);
-#print Dumper(\%conf);
 
 # Initialize JSONRPC
 my $daemon = new JSON::RPC::Client;
@@ -24,7 +23,6 @@ $daemon->ua->credentials("localhost:$conf{rpcport}", 'jsonrpc', $conf{rpcuser} =
 my $uri = "http://localhost:$conf{rpcport}/";
 
 my $res = $daemon->call($uri, method("getinfo", ()));
-#print Dumper($res) . "\n";
 
 # Compile header.proto
 Google::ProtocolBuffers->parsefile("envelope.proto");
@@ -32,7 +30,6 @@ Google::ProtocolBuffers->parsefile("envelope.proto");
 # Pack file into envelope 
 my $rsa_new_public_key;
 if ("true" eq $harg{add_key}) {
-  #Crypt::OpenSSL::Random::random_seed($good_entropy);
   Crypt::OpenSSL::RSA->import_random_seed();
   $rsa_new_public_key = Crypt::OpenSSL::RSA->generate_key(1024);
   $rsa_new_public_key->use_pkcs1_oaep_padding;
@@ -50,17 +47,11 @@ if (exists $harg{sign_with}) {
 }
 
 my $renv = create_envelope($harg{file}, $harg{content_type}, $rsa_new_public_key, $rsa_private_key);
-#print Dumper($renv);
 my $blob = Envelope->encode($renv);
 if (length($blob) > (1024*128)) {
   die "ERROR: File is too big: " . legnth($blob) . "bytes. Max size is 128Kb";
 }
 my $txdata = encode_base64($blob, "");
-#print $txdata . "\n"; 
-
-#open(Z, "> tttt.txt");
-#print Z Envelope->encode($renv);
-#close(Z);
 
 # Try to send tx with data
 my $res = $daemon->call($uri, method("senddata", ($txdata)));
@@ -74,7 +65,7 @@ if ($res->{is_success}) {
   exit;
 }
 
-#print Dumper($renv);
+###
 
 sub parse_args {
   my ($ra) = @_;

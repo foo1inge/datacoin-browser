@@ -7,7 +7,10 @@ our $VERSION = "0.1";
 
 use base 'Exporter';
 
-our @EXPORT = qw(init_config method);
+our @EXPORT = qw(init_config json_call method);
+
+#use Datacoin::JSON::RPC::Client;
+use Data::Dumper;
 
 sub init_config {
   my ($path, $testnet) = @_;
@@ -32,6 +35,36 @@ sub init_config {
 #  $config{"rpcport"} = 11776 unless exists $config{"rpcport"}; # testnet
 
   return %config;
+}
+
+sub json_call {
+  my ($obj, $uri, $name, $rparams, $on_error) = @_;
+  my $res;
+  my $r = 0;
+  while (1) {
+    $res = $obj->call($uri, method($name, @{$rparams}));
+    if (!$res->{is_success} && $res->{content}->{error} =~ /Can\'t connect/) {
+      $r += 1;
+      print STDERR "request \"$name\" retry $r\n";
+      sleep(1);
+      next;
+    } elsif ($res->{is_success}) {
+      return $res;
+    } else {
+      print STDERR "ERROR: JSON-RPC method \"$name\" with arguments\n";
+      print STDERR Dumper($rparams) . "\n";
+      print STDERR "returned\n" . Dumper($res);
+      print STDERR "JSON-RPC Client state\n" . Dumper($obj);
+      if (defined $on_error) {
+        $on_error->();
+        last;
+      } else {
+        exit;
+      }
+    }
+  }
+  
+  return $res;
 }
 
 sub method {

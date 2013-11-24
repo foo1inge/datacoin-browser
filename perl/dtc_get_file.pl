@@ -29,24 +29,28 @@ Google::ProtocolBuffers->parsefile("envelope.proto");
 my $res;
 $res = $daemon->call($uri, method("getrawtransaction", ($harg{id})));
 if (!$res->{is_success}) {
-  print STDERR "Failed to send tx\n";
+  print STDERR "Failed to do \"getrawtransaction\"\n";
   print STDERR Dumper($res) . "\n";
   exit;
 }
 
 my $rawtx = $res->{content}->{result};
-#print "rawtx = $rawtx\n\n";
 
 # Decode raw transaction
 $res = $daemon->call($uri, method("decoderawtransaction", ($rawtx)));
 if (!$res->{is_success}) {
-  print STDERR "Failed to send tx\n";
+  print STDERR "Failed to do \"decoderawtransaction\"\n";
   print STDERR Dumper($res) . "\n";
   exit;
 }
 
 # Parse envelope
-my $renv = Envelope->decode(decode_base64($res->{content}->{result}->{data}));
+my $content = decode_base64($res->{content}->{result}->{data});
+my $renv = Envelope->decode($content);
+if (!exists $renv->{Data}) {
+  print "This isn't an Envelope encoding. " . length($content) . " bytes are stored in tx in unknown format.\n";
+  exit;
+}
 my $data = unpack_data_from_envelope($renv);
 
 if (exists $harg{save_to}) {
