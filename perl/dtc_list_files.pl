@@ -27,7 +27,7 @@ my $uri = "http://localhost:$conf{rpcport}/";
 Google::ProtocolBuffers->parsefile("envelope.proto");
 
 # Enumerate blocks
-my $height = 10000;
+my $height = 18000;
 while (1) {
   my $res = json_call($daemon, $uri, "getblockhash", [$height], sub {print STDERR "error while doing \"getblockhash $height\"\n";});
   if (!$res->{is_success}) { print STDERR Dumper($res); last; }
@@ -47,10 +47,14 @@ while (1) {
 
     my $tx = $res->{content}->{result};
     if (0 == length($tx->{data})) { next; }
-    print "$height $txhash " . length($tx->{data}) . "\n";
-    print $tx->{data} . "\n\n";
-#    print Dumper($tx);
-
+    print "$height $txhash " . length($tx->{data});
+    my $content = decode_base64($tx->{data});
+    my $renv;
+    eval { $renv = Envelope->decode($content); };
+    if (exists $renv->{Data}) {
+      print " " . join(" ", ($renv->{FileName}, $renv->{ContentType}, $renv->{Compression}));
+    }
+    print "\n";
   }
 
   $height += 1;
