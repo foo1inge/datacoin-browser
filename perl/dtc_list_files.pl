@@ -39,16 +39,13 @@ while (1) {
 
   my @txes = @{$res->{content}->{result}->{tx}};
   foreach my $txhash (@txes) {
-    $res = json_call($daemon, $uri, "getrawtransaction", [$txhash], sub {print STDERR "error fetching $txhash\n";});
-    if (!$res->{is_success}) { next; }
+    $res = json_call($daemon, $uri, "getdata", [$txhash], sub {print STDERR "error fetching data from $txhash\n";});
+    my $base64_data = $res->content->{result};
 
-    my $rawtx = $res->{content}->{result};
-    $res = json_call($daemon, $uri, "decoderawtransaction", [$rawtx], sub {print STDERR "error decoding $txhash\n";});
+    if (0 == length($base64_data)) { next; }
+    print "$height $txhash " . length($base64_data);
 
-    my $tx = $res->{content}->{result};
-    if (0 == length($tx->{data})) { next; }
-    print "$height $txhash " . length($tx->{data});
-    my $content = decode_base64($tx->{data});
+    my $content = decode_base64($base64_data);
     my $renv;
     eval { $renv = Envelope->decode($content); };
     if (exists $renv->{Data}) {
