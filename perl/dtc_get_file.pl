@@ -62,7 +62,8 @@ if (exists $harg{save_to}) {
   print F $data;
   close(F);
 } else {
-  print $data; #Dumper($renv);
+  print $data;
+  #print Dumper(decode_base64($renv->{PublicKey}));
 }
 
 ###

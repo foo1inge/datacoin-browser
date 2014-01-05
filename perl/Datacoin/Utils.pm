@@ -7,7 +7,7 @@ our $VERSION = "0.1";
 
 use base 'Exporter';
 
-our @EXPORT = qw(init_config json_call method);
+our @EXPORT = qw(init_config get_raw_key json_call method);
 
 #use Datacoin::JSON::RPC::Client;
 use Data::Dumper;
@@ -31,11 +31,22 @@ sub init_config {
   }
   close(F);
 
-  $config{"rpcport"} = 11777 unless exists $config{"rpcport"};
-#  $config{"rpcport"} = 11776 unless exists $config{"rpcport"}; # testnet
+  if (!defined($testnet) || 0 == $testnet) {
+    $config{"rpcport"} = 11777 unless exists $config{"rpcport"};
+  } elsif (1 == $testnet) {
+    $config{"rpcport"} = 11776 unless exists $config{"rpcport"}; # testnet
+  }
 
   return %config;
 }
+
+sub get_raw_key {
+  my ($str) = @_;
+  $str =~ s/^-----BEGIN[A-Z ]+-----//;
+  $str =~ s/^-----END[A-Z ]+-----//m;
+  $str =~ s/[\r\n]//msg;
+  return $str;
+} 
 
 sub json_call {
   my ($obj, $uri, $name, $rparams, $on_error) = @_;
@@ -52,7 +63,7 @@ sub json_call {
       return $res;
     } else {
       print STDERR "ERROR: JSON-RPC method \"$name\" with arguments\n";
-      print STDERR Dumper($rparams) . "\n";
+      #print STDERR Dumper($rparams) . "\n";
       print STDERR "returned\n" . Dumper($res);
       print STDERR "JSON-RPC Client state\n" . Dumper($obj);
       if (defined $on_error) {
@@ -73,6 +84,7 @@ sub method {
     method  => $name,
     params  => \@params,
   };
+  print STDERR "obj = " . Dumper(\$obj) . "\n";
   return $obj;
 }
 

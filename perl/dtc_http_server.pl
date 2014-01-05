@@ -6,8 +6,8 @@ use Datacoin::LocalServer;
 # Initialize
 my %harg = parse_args(\@ARGV);
 
-#my $pid = Datacoin::LocalServer->new(8080)->background();
-my $localSrv = Datacoin::LocalServer->new(\%harg, 8080); #->background();
+my $localSrv = Datacoin::LocalServer->new(\%harg, 8080, $harg{testnet});
+
 $localSrv->run();
 
 ###

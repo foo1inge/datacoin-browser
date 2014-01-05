@@ -100,6 +100,7 @@ sub call {
     }
     else {
         Carp::croak "not hashref." unless (ref $obj eq 'HASH');
+        #if ("getblockhash" eq $obj->{method}) { print STDERR Dumper($obj) . "\n"; }
         $result = $self->_post($uri, $obj);
     }
 
@@ -147,8 +148,15 @@ sub _post {
         $obj->{id} = $self->id if (defined $self->id);
     }
 
-    my $content = $json->encode($obj);
+    for (my $i = 0; $i <= $#{$obj->{params}}; $i++) {
+      if ($obj->{params}->[$i] =~ /^\d+$/) {
+        $obj->{params}->[$i] += 0;
+      }
+    }
 
+    my $content = $json->encode($obj);
+    #print STDERR "JSON::ENCODE -> $content\n";
+    
     $self->ua->post(
         $uri,
         Content_Type   => $self->{content_type},

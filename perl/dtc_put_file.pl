@@ -15,7 +15,7 @@ use Datacoin::Utils;
 # Parse daemon config
 my %harg = parse_args(\@ARGV);
 my $config_path = File::HomeDir->my_home . "/.datacoin/" unless length($harg{config_path}) > 0;
-my %conf = init_config($config_path);
+my %conf = init_config($config_path, $harg{testnet});
 
 # Initialize JSONRPC
 my $daemon = new JSON::RPC::Client;
@@ -46,7 +46,7 @@ if (exists $harg{sign_with}) {
   $rsa_private_key = Crypt::OpenSSL::RSA->new_private_key($private_key_string);
 }
 
-my $renv = create_envelope($harg{file}, $harg{content_type}, $rsa_new_public_key, $rsa_private_key);
+my $renv = create_envelope($harg{file}, $harg{"content-type"}, $rsa_new_public_key, $rsa_private_key);
 my $blob = Envelope->encode($renv);
 if (length($blob) > (1024*128)) {
   die "ERROR: File is too big: " . legnth($blob) . "bytes. Max size is 128Kb";

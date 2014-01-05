@@ -13,6 +13,7 @@ use MIME::Base64 qw( encode_base64 decode_base64 );
 use IO::Compress::Bzip2 qw(bzip2 $Bzip2Error);
 use IO::Uncompress::Bunzip2 qw(bunzip2 $Bunzip2Error);
 use Crypt::OpenSSL::RSA;
+use Datacoin::Utils; 
 
 sub create_envelope {
   my ($fn, $ct, $rsa_public_key, $rsa_private_key) = @_;
@@ -23,18 +24,12 @@ sub create_envelope {
 
   bzip2 $fn => \$env{Data} || die "bzip2 failed: $Bzip2Error\n"; 
 
-#  print "Compressed blob size is " . length($env{Data}) . "\n";
-
   if (defined $ct) {
     $env{ContentType} = $ct;
   }
 
   if (defined $rsa_public_key) {
-    my $public_key = decode_base64($rsa_public_key->get_public_key_string());
-#    print $public_key;
-#    $public_key =~ s/-----[A-Z ]+-----//g;
-#    $public_key =~ s/\n//gs;
-#    print $public_key . "\n";
+    my $public_key = decode_base64(get_raw_key($rsa_public_key->get_public_key_string()));
 
     $env{PublicKey} = $public_key;
   }

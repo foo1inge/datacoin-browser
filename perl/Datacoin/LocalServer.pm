@@ -24,19 +24,28 @@ our @EXPORT = qw(init_daemon);
 
 
  sub new {
-   my ($class, $rharg, $port) = @_;
+   my ($class, $rharg, $port, $testnet) = @_;
    
    my $self = $class->SUPER::new($port);
 
+   if (defined($testnet) && 1 == $testnet) {
+     $self->{testnet} = 1;
+     $self->{urlprefix} = "dtc-testnet";
+   } else {
+     $self->{testnet} = 0;
+     $self->{urlprefix} = "dtc";
+   }
+
    my %harg = %{$rharg};
    my $config_path = File::HomeDir->my_home . "/.datacoin/" unless exists $harg{config_path};
-   my %conf = init_config($config_path);
+   my %conf = init_config($config_path, $self->{testnet});
 
    # Initialize JSONRPC
    $self->{daemon} = new Datacoin::JSON::RPC::Client;
    $self->{daemon}->ua->credentials("localhost:$conf{rpcport}", 'jsonrpc', $conf{rpcuser} => $conf{rpcpassword});
    $self->{daemon}->ua->timeout(60);
    $self->{uri} = "http://localhost:$conf{rpcport}/";
+   
 
    # Compile header.proto
    Google::ProtocolBuffers->parsefile("envelope.proto");
@@ -60,6 +69,13 @@ our @EXPORT = qw(init_daemon);
    return $data;
  }
 
+ sub execute_json_method {
+   my ($self, $method, @args) = @_;
+   print STDERR "executing JSON call: $method with args (" . join(", ", @args) . ")\n";
+   my $res = json_call($self->{daemon}, $self->{uri}, $method, \@args, sub {print STDERR "ERROR: \"$method\"\n";});
+   return $res->jsontext;
+ }
+
  sub parse_envelope {
    my ($self, $data) = @_;
 
@@ -67,7 +83,7 @@ our @EXPORT = qw(init_daemon);
    eval { $renv = Envelope->decode($data); };
 
    if (exists $renv->{Data}) {
-     print STDERR " " . join(" ", ($renv->{FileName}, $renv->{ContentType}, $renv->{Compression}));
+     print STDERR " " . join(" ", ($renv->{FileName}, $renv->{ContentType}, $renv->{Compression}, "\n"));
    }
  
    return $renv;
@@ -79,7 +95,7 @@ our @EXPORT = qw(init_daemon);
    
      my $path = $cgi->path_info();
 
-     if ($path =~ /^\/dtc\/tx\/([^\/]+)(\/([^\/]+))?/) {
+     if ($path =~ /^\/$self->{urlprefix}\/tx\/([^\/]+)(\/([^\/]+))?/) {
        my ($id, $mode) = ($1, $3);
 
        # Get object by id from daemon
@@ -91,7 +107,7 @@ our @EXPORT = qw(init_daemon);
            print "HTTP/1.0 200 OK\r\n";
 
            if (exists $renv->{ContentType}) {
-             print "Content-type: $renv->{ContentType};\r\n";
+             print "Content-type: $renv->{ContentType};\r\n\r\n";
            } else {
              print $cgi->header;
            }
@@ -112,18 +128,54 @@ our @EXPORT = qw(init_daemon);
                $cgi->h1('Error'), "Unknown mode $mode\n",
                $cgi->end_html;
        }
-     } elsif ($path =~ /^\/dtc\/rpc\/([^\/]+)(\/(.*))?$/) {
+     } elsif ($path =~ /^\/$self->{urlprefix}\/rpc\/([^\/]+)(\/(.*))?$/) {
        my ($method, $rawargs) = ($1, $3);
        my @args = split(/\//, $3);
-       print "HTTP/1.0 200 OK\r\n";
-       print "Content-type: application/json;\r\n\r\n",
-             "{ \"Method\": \"$method\", \"Args\": \"" . join(", ", @args) . "\" }\r\n";
+       if ("getinfo" eq $method || "getblockhash" eq $method || "getblock" eq $method ||
+           "getrawtransaction" eq $method || "getmininginfo" eq $method) {
+         print "HTTP/1.0 200 OK\r\n";
+         print "Content-type: application/json;\r\n\r\n",
+               $self->execute_json_method($method, @args) . "\r\n";
+       } else {
+         print "HTTP/1.0 404 OK\r\n";
+         print "Content-type: application/json;\r\n\r\n",
+               "{ \"Method\": \"$method\", \"Error\": \"unknown method\" }\r\n";
+       }
+     } elsif ($path =~ /^\/$self->{urlprefix}\/lsrpc\/([^\/]+)(\/(.*))?$/) {
+       # This is Datacoin::LocalServer RPC (we have to handle it here)
+       my ($method, @args) = ($1, split("\/", $3));
+       if ("getenvelope" eq $method) {
+         print "HTTP/1.0 200 OK\r\n";
+         print "Content-type: application/json;\r\n\r\n";
+         if ($#args < 0) {
+           print "{ \"Method\": \"$method\", \"Error\": \"no tx id provided\" }\r\n";
+           return;
+         }
+         my $id = $args[0];
+         my $data = $self->get_tx_data($id);
+         my $renv = $self->parse_envelope($data);
+         if (defined($renv)) {
+           print "{ \"result\": {";
+           foreach my $k (keys %{$renv}) {
+             if ("Data" ne $k) {
+               if ("PublicKey" eq $k || "Signature" eq $k) {
+                 my $encstr = encode_base64($renv->{$k}, "");
+                 chomp $encstr;
+                 print "\"$k\":\"$encstr\",";
+               } else {
+                 print "\"$k\":\"$renv->{$k}\",";
+               }
+             }
+           }
+           print "} }";
+         } else {
+           print "HTTP/1.0 404 Not found\r\n";
+           print $cgi->header, $cgi->start_html('Not found'), $cgi->h1('Not found'), $cgi->end_html;
+         }
+       }
      } else {
          print "HTTP/1.0 404 Not found\r\n";
-         print $cgi->header,
-               $cgi->start_html('Not found'),
-               $cgi->h1('Not found'),
-               $cgi->end_html;
+         print $cgi->header, $cgi->start_html('Not found'), $cgi->h1('Not found'), $cgi->end_html;
      }
  }
  
