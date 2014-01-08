@@ -6,7 +6,7 @@ use Datacoin::LocalServer;
 # Initialize
 my %harg = parse_args(\@ARGV);
 
-my $localSrv = Datacoin::LocalServer->new(\%harg, 8080, $harg{testnet});
+my $localSrv = Datacoin::LocalServer->new(\%harg, $harg{"http-port"}, $harg{testnet});
 
 $localSrv->run();
 
@@ -24,6 +24,10 @@ sub parse_args {
     } else {
       die "Can't parse \"$a\"";
     }
+  }
+
+  if (! exists($h{"http-port"})) {
+    $h{"http-port"} = 80;
   }
 
   return %h;
