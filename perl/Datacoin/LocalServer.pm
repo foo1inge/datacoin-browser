@@ -95,7 +95,7 @@ our @EXPORT = qw(init_daemon);
    
      my $path = $cgi->path_info();
 
-     if ($path =~ /^\/$self->{urlprefix}\/tx\/([^\/]+)(\/([^\/]+))?/) {
+     if ($path =~ /^\/$self->{urlprefix}\/get\/([^\/]+)(\/([^\/]+))?/) {
        my ($id, $mode) = ($1, $3);
 
        # Get object by id from daemon
